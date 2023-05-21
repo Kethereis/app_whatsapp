@@ -1,10 +1,49 @@
+
 import 'package:flutter/material.dart';
+import 'dart:html' as html;
+import 'package:http/http.dart' as http;
+import 'dart:typed_data';
+
 
 import '../color.dart';
 
 class MessageBox extends StatelessWidget {
+
+  void uploadFile(html.File file) async {
+    String url = 'https://9f00-170-238-148-141.ngrok-free.app/webhook_kiwify'; // Substitua pelo seu endpoint
+
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse(url));
+
+      final reader = html.FileReader();
+      reader.readAsArrayBuffer(file);
+      await reader.onLoadEnd.first;
+
+      final Uint8List fileBytes = Uint8List.fromList(reader.result as List<int>);
+
+      request.files.add(
+        http.MultipartFile.fromBytes('file', fileBytes, filename: file.name),
+      );
+
+      var response = await request.send();
+      if (response.statusCode == 200) {
+        // Arquivo enviado com sucesso
+        var responseBody = await response.stream.bytesToString();
+        print('Resposta do servidor: $responseBody');
+      } else {
+        // Houve um erro no envio do arquivo
+        print('Erro ao enviar o arquivo. Código de status: ${response.statusCode}');
+      }
+    } catch (error) {
+      // Trate quaisquer erros que possam ocorrer
+      print('Erro ao enviar o arquivo: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    TextEditingController _messageController = TextEditingController();
+
     return Container(
       padding: EdgeInsets.all(10),
       child: Column(
@@ -94,9 +133,24 @@ class MessageBox extends StatelessWidget {
           Container(
             child: Row(
               children: [
-                IconButton(icon: Icon(Icons.attach_file), onPressed: () {}),
+                IconButton(icon: Icon(Icons.attach_file), onPressed:  ()  {
+                  html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
+                  uploadInput.click();
+
+                  uploadInput.onChange.listen((event) {
+                    final files = uploadInput.files;
+                    if (files != null && files.isNotEmpty) {
+                      final file = files[0];
+                      // Prossiga para enviar o arquivo para o endpoint
+                      uploadFile(file);
+                    } else {
+                      // Usuário cancelou a seleção do arquivo
+                    }
+                  });
+                },),
                 Expanded(
                   child: TextFormField(
+                    controller: _messageController,
                     decoration: InputDecoration(
                       hintText: "Mensagem",
                       border: OutlineInputBorder(
@@ -110,7 +164,8 @@ class MessageBox extends StatelessWidget {
                     Icons.send_rounded,
                     color: Theme.of(context).primaryColor,
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                  },
                 ),
               ],
             ),
@@ -135,6 +190,7 @@ class MessageBox extends StatelessWidget {
         message,
         style: TextStyle(color: isSend ? Colors.white : null),
       ),
+
     );
   }
 }
